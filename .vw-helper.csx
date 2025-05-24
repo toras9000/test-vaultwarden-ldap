@@ -1,4 +1,5 @@
 #r "nuget: Lestaly, 0.81.0"
+#r "nuget: Lestaly, 0.82.0"
 #nullable enable
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -256,7 +257,7 @@ class VaultwardenHelper : IDisposable
             var scan = cookie.AsSpan();
             while (!scan.IsEmpty)
             {
-                var entry = scan.TakeSkipToken(out scan, delimiter: ';');
+                var entry = scan.TakeSkipFirstToken(out scan, delimiter: ';');
                 var key = entry.SplitAt('=', out var value);
                 if (key.Trim().Equals("VW_ADMIN", StringComparison.OrdinalIgnoreCase))
                 {

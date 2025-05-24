@@ -1,6 +1,6 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Microsoft.Playwright, 1.52.0"
-#r "nuget: Lestaly, 0.81.0"
+#r "nuget: Lestaly, 0.82.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
@@ -35,7 +35,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     WriteLine("Detection invite mail");
     var mailDir = ThisSource.RelativeDirectory("maildump");
     var joinUrls = mailDir.GetFiles("*-text.txt").OrderByDescending(f => f.Name)
-        .Select(file => file.ReadAllLines().FirstOrDefault(l => l.StartsWith("Click here to join:"))?.SkipToken(':').Trim().ToString())
+        .Select(file => file.ReadAllLines().FirstOrDefault(l => l.StartsWith("Click here to join:"))?.SkipFirstToken(':').Trim().ToString())
         .Where(url => url != null).Select(u => u!)
         .ToArray();
     var userInvites = orgMembers.data
@@ -61,7 +61,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     foreach (var invite in userInvites)
     {
         WriteLine($"  User: {invite.member.email}");
-        var password = $"{invite.member.email.TakeToken('@')}-password";
+        var password = $"{invite.member.email.TakeFirstToken('@')}-password";
         var page = await browser.NewPageAsync();
         var response = await page.GotoAsync(invite.joinUrl!);
         var registerForm = page.Locator("app-register-form");

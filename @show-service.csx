@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: Lestaly, 0.81.0"
+#r "nuget: Lestaly, 0.82.0"
 #r "nuget: Kokuban, 0.2.0"
 #nullable enable
 using System.Threading;
@@ -11,6 +11,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
 {
     var composeFile = ThisSource.RelativeFile("./compose.yml");
     var port = (await "docker".args("compose", "--file", composeFile, "port", "app", "80").silent().result().success().output(trim: true)).SkipToken(':');
+    var port = (await "docker".args("compose", "--file", composeFile, "port", "app", "80").silent().result().success().output(trim: true)).SkipFirstToken(':');
     var service = $"http://localhost:{port}";
     WriteLine();
     WriteLine($" {Poster.Link[service,            $"Vaultwarden       - {service}"]}");

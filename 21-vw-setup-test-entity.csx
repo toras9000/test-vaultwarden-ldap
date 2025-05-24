@@ -1,6 +1,6 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Microsoft.Playwright, 1.52.0"
-#r "nuget: Lestaly, 0.81.0"
+#r "nuget: Lestaly, 0.82.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
@@ -33,7 +33,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         {
             var lastMail = mailDir.GetFiles("*-text.txt").OrderByDescending(f => f.Name).FirstOrDefault();
             var joinLine = Try.Func(() => lastMail?.ReadAllLines().FirstOrDefault(l => l.StartsWith("Click here to join:") && l.Contains(encUser)), _ => default);
-            if (joinLine != null) { joinUri = new Uri(joinLine.SkipToken(':').Trim().ToString()); break; }
+            if (joinLine != null) { joinUri = new Uri(joinLine.SkipFirstToken(':').Trim().ToString()); break; }
             await Task.Delay(TimeSpan.FromMilliseconds(500), breaker.Token);
         }
     }
