@@ -1,6 +1,6 @@
-#r "nuget: Lestaly, 0.81.0"
 #r "nuget: Lestaly, 0.82.0"
 #nullable enable
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -33,6 +33,17 @@ enum EditMembershipType
     User = 2,
     Manager = 3,
     Custom = 4,
+}
+
+enum EncryptionType
+{
+    AesCbc256 = 0,
+    AesCbc128_HmacSha256 = 1,
+    AesCbc256_HmacSha256 = 2,
+    Rsa2048_OaepSha256 = 3,
+    Rsa2048_OaepSha1 = 4,
+    Rsa2048_OaepSha256_HmacSha256 = 5,
+    Rsa2048_OaepSha1_HmacSha256 = 6,
 }
 
 record AdminToken(string token);
@@ -168,6 +179,89 @@ record ImportOrgArgs(bool overwriteExisting, ImportOrgMember[] members, ImportOr
 #endregion
 
 record ConfirmMemberArgs(string key);
+
+class EncryptedKey
+{
+    public EncryptionType Type { get; }
+    public byte[] Data { get; }
+    public byte[]? IV { get; }
+    public byte[]? MAC { get; }
+
+    public static EncryptedKey Parse(ReadOnlySpan<char> encryptedString)
+        => EncryptedKey.TryParse(encryptedString, out var key) ? key : throw new Exception("cannot parse encrypted key");
+
+    public static bool TryParse(ReadOnlySpan<char> encryptedString, [NotNullWhen(true)] out EncryptedKey? value)
+    {
+        value = default;
+        if (encryptedString.IsWhiteSpace()) return false;
+        var scan = encryptedString;
+        var typeNum = scan.TakeSkipFirstToken(out scan, '.').TryParseNumber<int>();
+        if (!typeNum.HasValue) return false;
+        var type = (EncryptionType)typeNum.Value;
+        if (!Enum.IsDefined(type)) return false;
+        var part1 = scan.TakeSkipFirstToken(out scan, '|');
+        var part2 = scan.TakeSkipFirstToken(out scan, '|');
+        var part3 = scan.TakeSkipFirstToken(out scan, '|');
+
+        static bool tryConstruct(EncryptionType type, ReadOnlySpan<char> data, ReadOnlySpan<char> iv, ReadOnlySpan<char> mac, [NotNullWhen(true)] out EncryptedKey? value)
+        {
+            value = default;
+            var dataBytes = data.DecodeBase64();
+            if (dataBytes == null) return false;
+            var ivBytes = iv.DecodeBase64();
+            var macBytes = mac.DecodeBase64();
+            value = new(type, data: dataBytes, iv: ivBytes, mac: macBytes);
+            return true;
+        }
+
+        switch (type)
+        {
+            case EncryptionType.AesCbc256:
+                return tryConstruct(type, data: part2, iv: part1, mac: null, out value);
+            case EncryptionType.AesCbc128_HmacSha256:
+            case EncryptionType.AesCbc256_HmacSha256:
+                return tryConstruct(type, data: part2, iv: part1, mac: part3, out value);
+            case EncryptionType.Rsa2048_OaepSha1:
+            case EncryptionType.Rsa2048_OaepSha256:
+                return tryConstruct(type, data: part1, iv: null, mac: null, out value);
+            case EncryptionType.Rsa2048_OaepSha1_HmacSha256:
+            case EncryptionType.Rsa2048_OaepSha256_HmacSha256:
+                return tryConstruct(type, data: part1, iv: null, mac: part2, out value);
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryParseWithIv(EncryptionType type, ReadOnlySpan<char> data, ReadOnlySpan<char> iv, [NotNullWhen(true)] out EncryptedKey? value)
+    {
+        value = default;
+        var dataBytes = data.DecodeBase64();
+        var ivBytes = iv.DecodeBase64();
+        if (dataBytes == null || ivBytes == null) return false;
+        value = new(type, data: dataBytes, iv: ivBytes);
+        return true;
+    }
+
+    private static bool TryParseWithIvMac(EncryptionType type, ReadOnlySpan<char> data, ReadOnlySpan<char> iv, ReadOnlySpan<char> mac, [NotNullWhen(true)] out EncryptedKey? value)
+    {
+        value = default;
+        var dataBytes = data.DecodeBase64();
+        var ivBytes = iv.DecodeBase64();
+        var macBytes = mac.DecodeBase64();
+        if (dataBytes == null || ivBytes == null || macBytes == null) return false;
+        value = new(type, data: dataBytes, iv: ivBytes);
+        return true;
+    }
+
+    private EncryptedKey(EncryptionType type, byte[] data, byte[]? iv = default, byte[]? mac = default)
+    {
+        this.Type = type;
+        this.Data = data;
+        this.IV = iv;
+        this.MAC = mac;
+    }
+}
+
 
 class VaultwardenHelper : IDisposable
 {
