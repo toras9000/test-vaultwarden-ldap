@@ -64,15 +64,9 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         var password = $"{invite.member.email.TakeFirstToken('@')}-password";
         var page = await browser.NewPageAsync();
         var response = await page.GotoAsync(invite.joinUrl!);
-        var registerForm = page.Locator("app-register-form");
-        await registerForm.Locator("input[id='register-form_input_name']").FillAsync(invite.member.email);
-        await registerForm.Locator("input[id='register-form_input_master-password']").FillAsync(password);
-        await registerForm.Locator("input[id='register-form_input_confirm-master-password']").FillAsync(password);
-        await registerForm.Locator("button[type='submit']").ClickAsync();
-        await page.Locator("app-login input[type='email']").FillAsync(invite.member.email);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
-        await page.Locator("app-login input[type='password']").FillAsync(password);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
+        await page.Locator("input[id='input-password-form_new-password']").FillAsync(password);
+        await page.Locator("input[id='input-password-form_confirm-new-password']").FillAsync(password);
+        await page.Locator("button[type='submit']").ClickAsync();
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 });

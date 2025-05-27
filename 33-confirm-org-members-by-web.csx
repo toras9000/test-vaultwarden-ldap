@@ -31,24 +31,25 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
 
     WriteLine("Login owner user");
     using var playwright = await Playwright.CreateAsync();
-    await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true, });
+    await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = false, });
     var page = await browser.NewPageAsync();
     {
         var userInfo = vwSettings.Setup.TestUser;
         var response = await page.GotoAsync(vwSettings.Service.Url) ?? throw new PavedMessageException("Cannot access register page");
-        await page.Locator("app-login input[type='email']").FillAsync(userInfo.Mail);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
-        await page.Locator("app-login input[type='password']").FillAsync(userInfo.Password);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
+        await page.Locator("main form bit-form-field input[type='email']").FillAsync(userInfo.Mail);
+        await page.Locator("main form button[type='button'][buttontype='primary']").Filter(new() { Visible = true }).ClickAsync();
+        await page.Locator("main form bit-form-field input[type='password']").FillAsync(userInfo.Password);
+        await page.Locator("main form button[type='submit'][buttontype='primary']").Filter(new() { Visible = true }).ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     WriteLine("Confirm users");
     {
         await page.GotoAsync($"http://localhost:8180/#/organizations/{testEntities.Organization.Id}/members");
         await page.Locator("main bit-toggle-group bit-toggle:nth-of-type(3)").ClickAsync();
-        await page.Locator("#selectAll").CheckAsync(); ;
+        await page.Locator("#selectAll").CheckAsync();
         await page.Locator("main bit-table table thead tr button[biticonbutton='bwi-ellipsis-v']").ClickAsync();
-        await page.Locator("#cdk-overlay-0.bit-menu-panel button:nth-of-type(1)").ClickAsync(); ;
+        await page.Locator("#cdk-overlay-0.bit-menu-panel button:nth-of-type(1)").ClickAsync();
         await page.Locator("#cdk-dialog-0 footer button:nth-of-type(1)").ClickAsync(); ;
     }
 

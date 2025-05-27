@@ -11,6 +11,7 @@ using Microsoft.Playwright;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
+using System.Threading;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -50,19 +51,10 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var page = await browser.NewPageAsync();
     {
         var response = await page.GotoAsync(joinUri.AbsoluteUri) ?? throw new PavedMessageException("Cannot access register page");
-        var form = page.Locator("app-register-form");
-        await form.Locator("input[id='register-form_input_name']").FillAsync(userInfo.Mail);
-        await form.Locator("input[id='register-form_input_master-password']").FillAsync(userInfo.Password);
-        await form.Locator("input[id='register-form_input_confirm-master-password']").FillAsync(userInfo.Password);
-        await form.Locator("button[type='submit']").ClickAsync();
-    }
-
-    WriteLine("Login test user");
-    {
-        await page.Locator("app-login input[type='email']").FillAsync(userInfo.Mail);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
-        await page.Locator("app-login input[type='password']").FillAsync(userInfo.Password);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
+        await page.Locator("input[id='input-password-form_new-password']").FillAsync(userInfo.Password);
+        await page.Locator("input[id='input-password-form_confirm-new-password']").FillAsync(userInfo.Password);
+        await page.Locator("button[type='submit']").ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     WriteLine("Create test organization");

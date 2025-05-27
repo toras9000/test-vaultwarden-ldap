@@ -58,7 +58,7 @@ services:
       - MAIL_DUMP_DIR=/var/maildump
 
   app:
-    image: vaultwarden/server:1.33.2
+    image: vaultwarden/server:1.34.1
     restart: unless-stopped
     networks:
       default:
