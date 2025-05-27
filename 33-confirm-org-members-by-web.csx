@@ -1,6 +1,6 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Microsoft.Playwright, 1.52.0"
-#r "nuget: Lestaly, 0.82.0"
+#r "nuget: Lestaly, 0.84.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".vw-settings.csx"
 #load ".vw-helper.csx"

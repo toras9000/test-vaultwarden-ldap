@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: Lestaly, 0.82.0"
+#r "nuget: Lestaly, 0.84.0"
 #nullable enable
 using Lestaly;
 using Lestaly.Cx;
