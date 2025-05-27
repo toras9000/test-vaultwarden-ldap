@@ -11,6 +11,7 @@ using Microsoft.Playwright;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
+using System.Threading;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -50,19 +51,10 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var page = await browser.NewPageAsync();
     {
         var response = await page.GotoAsync(joinUri.AbsoluteUri) ?? throw new PavedMessageException("Cannot access register page");
-        var form = page.Locator("app-register-form");
-        await form.Locator("input[id='register-form_input_name']").FillAsync(userInfo.Mail);
-        await form.Locator("input[id='register-form_input_master-password']").FillAsync(userInfo.Password);
-        await form.Locator("input[id='register-form_input_confirm-master-password']").FillAsync(userInfo.Password);
-        await form.Locator("button[type='submit']").ClickAsync();
-    }
-
-    WriteLine("Login test user");
-    {
-        await page.Locator("app-login input[type='email']").FillAsync(userInfo.Mail);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
-        await page.Locator("app-login input[type='password']").FillAsync(userInfo.Password);
-        await page.Locator("app-login button[type='submit']").Filter(new() { Visible = true }).ClickAsync();
+        await page.Locator("input[id='input-password-form_new-password']").FillAsync(userInfo.Password);
+        await page.Locator("input[id='input-password-form_confirm-new-password']").FillAsync(userInfo.Password);
+        await page.Locator("button[type='submit']").ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     WriteLine("Create test organization");
@@ -75,7 +67,8 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
 
     WriteLine("Get test entities information");
     var userPrelogin = await helper.PreloginAsync(new(userInfo.Mail), signal.Token);
-    var userPassHsah = helper.CreatePasswordHash(userInfo.Mail, userInfo.Password, userPrelogin.kdfIterations);
+    var userPassHsah = helper.CreatePasswordHash(userInfo.Mail, userInfo.Password, userPrelogin);
+    var userPassHashB64 = userPassHsah.EncodeBase64();
     var userPassReq = new PasswordConnectTokenModel(
         scope: "api offline_access",
         client_id: "web",
@@ -83,14 +76,25 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         device_name: Environment.MachineName,
         device_identifier: Environment.MachineName,
         username: userInfo.Mail,
-        password: userPassHsah
+        password: userPassHashB64
     );
     var userToken = await helper.ConnectTokenAsync(userPassReq, signal.Token);
-    var userProfile = await helper.GetUserProfile(userToken, signal.Token);
-    var userApiKey = await helper.GetUserApiKey(userToken, new(masterPasswordHash: userPassHsah), signal.Token);
+    var userApiKey = await helper.GetUserApiKey(userToken, new(masterPasswordHash: userPassHashB64), signal.Token);
+    var userProfile = default(VwUser);
+    for (var i = 0; i < 3; i++)
+    {
+        var user = await helper.GetUserProfile(userToken, signal.Token);
+        if (0 < user.organizations?.Length)
+        {
+            userProfile = user;
+            break;
+        }
+        await Task.Delay(TimeSpan.FromSeconds(1));
+    }
+    if (userProfile == null) throw new PavedMessageException("Cannot access register page");
 
     var orgProfile = userProfile.organizations.First(o => o.name == orgInfo.Name);
-    var orgApiKey = await helper.GetOrgApiKey(userToken, orgProfile.id, new(masterPasswordHash: userPassHsah), signal.Token);
+    var orgApiKey = await helper.GetOrgApiKey(userToken, orgProfile.id, new(masterPasswordHash: userPassHashB64), signal.Token);
 
     WriteLine("Save test entities info");
     var testEntities = new TestEntities(

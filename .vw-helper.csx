@@ -1,5 +1,6 @@
 #r "nuget: Lestaly, 0.82.0"
 #nullable enable
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -47,6 +48,8 @@ enum EncryptionType
 }
 
 record AdminToken(string token);
+
+record SymmetricCryptoKey(EncryptionType type, byte[] encKey, byte[] authKey);
 
 #region ConnectToken
 enum ClientDeviceType
@@ -102,8 +105,14 @@ record PasswordConnectTokenResult(
 #endregion
 
 #region Prelogin
+enum KdfType
+{
+    Pbkdf2 = 0,
+    Argon2id = 1,
+}
 record PreloginArgs(string email);
-record PreloginResult(int kdf, int kdfIterations, long? kdfMemory, long? kdfParallelism);
+record KdfConfig(KdfType kdf, int kdfIterations, long? kdfMemory, long? kdfParallelism);
+record PreloginResult(KdfType kdf, int kdfIterations, long? kdfMemory, long? kdfParallelism) : KdfConfig(kdf, kdfIterations, kdfMemory, kdfParallelism);
 #endregion
 
 record VwUser(
@@ -279,14 +288,39 @@ class VaultwardenHelper : IDisposable
         set => this.http.Timeout = value;
     }
 
-    public string CreatePasswordHash(string email, string password, int iteration)
+    public byte[] CreatePasswordHash(string email, string password, KdfConfig config)
     {
+        if (config.kdf != KdfType.Pbkdf2) throw new NotSupportedException();
         var passBytes = Encoding.UTF8.GetBytes(password);
         var mailBytes = Encoding.UTF8.GetBytes(email);
-        var preKey = Rfc2898DeriveBytes.Pbkdf2(passBytes, mailBytes, iteration, HashAlgorithmName.SHA256, 32);
-        var passKey = Rfc2898DeriveBytes.Pbkdf2(preKey, passBytes, 1, HashAlgorithmName.SHA256, 32);
-        var passHash = Convert.ToBase64String(passKey);
+        var preKey = Rfc2898DeriveBytes.Pbkdf2(passBytes, mailBytes, config.kdfIterations, HashAlgorithmName.SHA256, 32);
+        var passHash = Rfc2898DeriveBytes.Pbkdf2(preKey, passBytes, 1, HashAlgorithmName.SHA256, 32);
         return passHash;
+    }
+
+    public byte[] CreateMasterKey(string email, string password, KdfConfig config)
+    {
+        if (config.kdf != KdfType.Pbkdf2) throw new NotSupportedException();
+        var passBytes = Encoding.UTF8.GetBytes(password);
+        var mailBytes = Encoding.UTF8.GetBytes(email);
+        var masterKey = Rfc2898DeriveBytes.Pbkdf2(passBytes, mailBytes, config.kdfIterations, HashAlgorithmName.SHA256, 32);
+        return masterKey;
+    }
+
+    public byte[] CreateExpandKey(byte[] key, string info)
+    {
+        var writer = new ArrayBufferWriter<byte>(info.Length + 1);
+        Encoding.UTF8.GetBytes(info, writer);
+        writer.Write<byte>([1]);
+        return HMACSHA256.HashData(key, writer.WrittenSpan.ToArray());
+    }
+
+    public SymmetricCryptoKey CreateStretchKey(byte[] key)
+    {
+        var encKey = CreateExpandKey(key, "enc");
+        var macKey = CreateExpandKey(key, "mac");
+        var stretchKey = new SymmetricCryptoKey(EncryptionType.AesCbc256_HmacSha256, encKey, macKey);
+        return stretchKey;
     }
 
     public byte[] EncryptKey(string publicKey, byte[] data)
