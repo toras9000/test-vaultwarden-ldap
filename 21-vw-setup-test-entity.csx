@@ -21,8 +21,8 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var userInfo = vwSettings.Setup.TestUser;
     var orgInfo = vwSettings.Setup.TestOrg;
     using var helper = new VaultwardenHelper(new(vwSettings.Service.Url));
-    var adminToken = await helper.AdminTokenAsync(vwSettings.Setup.Admin.Password, signal.Token);
-    var testUser = await helper.AdminInviteAsync(adminToken, userInfo.Mail, signal.Token);
+    var adminToken = await helper.Admin.GetTokenAsync(vwSettings.Setup.Admin.Password, signal.Token);
+    var testUser = await helper.Admin.InviteAsync(adminToken, userInfo.Mail, signal.Token);
 
     WriteLine("Detection invite mail");
     var joinUri = default(Uri);
@@ -66,8 +66,8 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     }
 
     WriteLine("Get test entities information");
-    var userPrelogin = await helper.PreloginAsync(new(userInfo.Mail), signal.Token);
-    var userPassHsah = helper.CreatePasswordHash(userInfo.Mail, userInfo.Password, userPrelogin);
+    var userPrelogin = await helper.Identity.PreloginAsync(new(userInfo.Mail), signal.Token);
+    var userPassHsah = helper.Utility.CreatePasswordHash(userInfo.Mail, userInfo.Password, userPrelogin);
     var userPassHashB64 = userPassHsah.EncodeBase64();
     var userPassReq = new PasswordConnectTokenModel(
         scope: "api offline_access",
@@ -78,12 +78,12 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         username: userInfo.Mail,
         password: userPassHashB64
     );
-    var userToken = await helper.ConnectTokenAsync(userPassReq, signal.Token);
-    var userApiKey = await helper.GetUserApiKey(userToken, new(masterPasswordHash: userPassHashB64), signal.Token);
+    var userToken = await helper.Identity.ConnectTokenAsync(userPassReq, signal.Token);
+    var userApiKey = await helper.User.GetApiKey(userToken, new(masterPasswordHash: userPassHashB64), signal.Token);
     var userProfile = default(VwUser);
     for (var i = 0; i < 3; i++)
     {
-        var user = await helper.GetUserProfile(userToken, signal.Token);
+        var user = await helper.User.GetProfile(userToken, signal.Token);
         if (0 < user.organizations?.Length)
         {
             userProfile = user;
@@ -94,7 +94,18 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     if (userProfile == null) throw new PavedMessageException("Cannot access register page");
 
     var orgProfile = userProfile.organizations.First(o => o.name == orgInfo.Name);
-    var orgApiKey = await helper.GetOrgApiKey(userToken, orgProfile.id, new(masterPasswordHash: userPassHashB64), signal.Token);
+    var orgApiKey = await helper.Organization.GetApiKey(userToken, orgProfile.id, new(masterPasswordHash: userPassHashB64), signal.Token);
+
+    WriteLine("Create test collections");
+    var ownerMember = new VwCollectionMembership(orgProfile.organizationUserId, readOnly: false, hidePasswords: false, manage: true);
+    var collections = new List<TestCollection>();
+    /*
+    foreach (var colName in vwSettings.Setup.TestOrg.Collections)
+    {
+        var collection = await helper.Organization.CreateCollection(userToken, orgProfile.id, new(name: colName, users: [ownerMember], groups: []));
+        collections.Add(new(collection.id, collection.name));
+    }
+    */
 
     WriteLine("Save test entities info");
     var testEntities = new TestEntities(
@@ -103,6 +114,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
             ClientId: $"organization.{orgProfile.id}",
             ClientSecret: orgApiKey.apiKey
         ),
+        collections.ToArray(),
         new TestConfirmer(
             Id: userProfile.id,
             ClientId: $"user.{userProfile.id}",

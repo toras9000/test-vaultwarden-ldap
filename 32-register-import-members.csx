@@ -29,8 +29,8 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         device_name: Environment.MachineName,
         device_identifier: Environment.MachineName
     );
-    var userToken = await helper.ConnectTokenAsync(userCredential, signal.Token);
-    var orgMembers = await helper.GetOrgMembers(userToken, testEntities.Organization.Id, new(true, true), signal.Token);
+    var userToken = await helper.Identity.ConnectTokenAsync(userCredential, signal.Token);
+    var orgMembers = await helper.Organization.GetMembers(userToken, testEntities.Organization.Id, new(true, true), signal.Token);
 
     WriteLine("Detection invite mail");
     var mailDir = ThisSource.RelativeDirectory("maildump");
