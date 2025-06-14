@@ -69,6 +69,11 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
             if (count == 0) break;
             await Task.Delay(TimeSpan.FromMilliseconds(400));
         }
+        foreach (var userElem in await page.Locator("#cdk-dialog-0 bit-table table tbody tr td:nth-of-type(2) p").AllAsync())
+        {
+            var userMail = await userElem.TextContentAsync();
+            WriteLine($".. {userMail}");
+        }
         WriteLine(".. Confirmed");
     }
 

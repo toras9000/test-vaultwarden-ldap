@@ -44,7 +44,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         device_name: Environment.MachineName,
         device_identifier: Environment.MachineName
     );
-    var orgToken = await helper.ConnectTokenAsync(orgCredential, signal.Token);
+    var orgToken = await helper.Identity.ConnectTokenAsync(orgCredential, signal.Token);
 
     var importData = new ImportOrgArgs(
         overwriteExisting: false,
@@ -53,5 +53,5 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
             .ToArray(),
         groups: []
     );
-    await helper.PublicOrgImportAsync(orgToken, importData, signal.Token);
+    await helper.Public.ImportOrgMembersAsync(orgToken, importData, signal.Token);
 });
