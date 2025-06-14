@@ -13,7 +13,6 @@ using Microsoft.Playwright;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
-using DocumentFormat.OpenXml.Spreadsheet;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -68,6 +67,11 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
             var count = await page.Locator("#cdk-dialog-0 footer button[bitbutton][buttontype='primary']").CountAsync();
             if (count == 0) break;
             await Task.Delay(TimeSpan.FromMilliseconds(400));
+        }
+        foreach (var userElem in await page.Locator("#cdk-dialog-0 bit-table table tbody tr td:nth-of-type(2) p").AllAsync())
+        {
+            var userMail = await userElem.TextContentAsync();
+            WriteLine($".. {userMail}");
         }
         WriteLine(".. Confirmed");
     }

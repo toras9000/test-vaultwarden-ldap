@@ -28,6 +28,11 @@ var vwSettings = new
         TestOrg = new
         {
             Name = "TestOrg",
+            Collections = new[]
+            {
+                "Collec1",
+                "Collec2",
+            },
         },
     },
 
@@ -43,4 +48,5 @@ var vwSettings = new
 
 record TestOrganization(string Id, string ClientId, string ClientSecret);
 record TestConfirmer(string Id, string ClientId, string ClientSecret);
-record TestEntities(TestOrganization Organization, TestConfirmer Confirmer);
+record TestCollection(string Id, string Name);
+record TestEntities(TestOrganization Organization, TestCollection[] Collections, TestConfirmer Confirmer);
