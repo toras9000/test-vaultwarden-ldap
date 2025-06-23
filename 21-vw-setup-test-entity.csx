@@ -98,16 +98,14 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
 
     WriteLine("Create test collections");
     var stretchKey = helper.Utility.CreateStretchKey(vwSettings.Setup.TestUser.Mail, vwSettings.Setup.TestUser.Password, userPrelogin);
-    var userKey = helper.Utility.Decrypt(stretchKey.EncKey, EncryptedData.Parse(userProfile.key));
-    var userSymmKey = SymmetricCryptoKey.From(userKey);
-    var userPrivateKey = helper.Utility.Decrypt(SymmetricCryptoKey.From(userKey).EncKey, EncryptedData.Parse(userProfile.privateKey));
-    var orgKey = helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(orgProfile.key));
-    var orgSymmKey = SymmetricCryptoKey.From(orgKey);
+    var userKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(stretchKey.EncKey, EncryptedData.Parse(userProfile.key)));
+    var userPrivateKey = helper.Utility.Decrypt(userKey.EncKey, EncryptedData.Parse(userProfile.privateKey));
+    var orgKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(orgProfile.key)));
     var ownerMember = new VwCollectionMembership(orgProfile.organizationUserId, readOnly: false, hidePasswords: false, manage: true);
     var collections = new List<TestCollection>();
     foreach (var colName in vwSettings.Setup.TestOrg.Collections)
     {
-        var colEncName = helper.Utility.EncryptAes(orgSymmKey, colName.EncodeUtf8(), hmac: true);
+        var colEncName = helper.Utility.EncryptAes(orgKey, colName.EncodeUtf8(), hmac: true);
         var collection = await helper.Organization.CreateCollection(userToken, orgProfile.id, new(name: colEncName.BuildString(), users: [ownerMember], groups: []));
         collections.Add(new(collection.id, collection.name));
     }

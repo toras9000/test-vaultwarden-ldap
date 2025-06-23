@@ -38,26 +38,26 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var userKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(stretchKey.EncKey, EncryptedData.Parse(userProfile.key)));
     var userPrivateKey = helper.Utility.Decrypt(userKey.EncKey, EncryptedData.Parse(userProfile.privateKey));
 
-    WriteLine($"User");
-    WriteLine($"- Name : {userProfile.name}");
-    WriteLine($"- Id   : {userProfile.id}");
-    WriteLine($"- Mail : {userProfile.email}");
-    WriteLine($"Organizations");
-    foreach (var org in userProfile.organizations)
-    {
-        WriteLine($"- Name : {org.name}");
-        WriteLine($"    - Id       : {org.id}");
-        WriteLine($"    - MemberId : {org.organizationUserId}");
-        WriteLine($"    - UserId   : {org.userId}");
+    var orgKeys = userProfile.organizations.ToDictionary(
+        o => o.id,
+        o => SymmetricCryptoKey.From(helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(o.key)))
+    );
 
-        var orgKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(org.key)));
-        var collections = await helper.Organization.GetCollections(userToken, org.id, signal.Token);
-        foreach (var coll in collections.data.Index())
+    var items = await helper.Cipher.GetItems(userToken, signal.Token);
+    foreach (var item in items.data)
+    {
+        var name = item.name;
+        if (item.organizationId.IsWhite())
         {
-            var name = helper.Utility.Decrypt(orgKey.EncKey, EncryptedData.Parse(coll.Item.name)).DecodeUtf8();
-            WriteLine($"    - Collection[{coll.Index}]:");
-            WriteLine($"        - Name : {name}");
-            WriteLine($"        - Id   : {coll.Item.id}");
+            name = helper.Utility.Decrypt(userKey.EncKey, EncryptedData.Parse(item.name)).DecodeUtf8();
         }
+        else if (orgKeys.TryGetValue(item.organizationId, out var orgKey))
+        {
+            name = helper.Utility.Decrypt(orgKey.EncKey, EncryptedData.Parse(item.name)).DecodeUtf8();
+        }
+        WriteLine($"- Name : {name}");
+        WriteLine($"  - ID   : {item.id}");
+        WriteLine($"  - Type : {item.type}");
     }
+
 });

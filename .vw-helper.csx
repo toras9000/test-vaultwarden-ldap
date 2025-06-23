@@ -101,7 +101,6 @@ public record ClientCredentialsConnectTokenResult(
     public KdfConfig ToKdfConfig() => new KdfConfig(this.Kdf, this.KdfIterations, this.KdfMemory, this.KdfParallelism);
 }
 
-
 public record PasswordConnectTokenMasterPasswordPolicy(string @object);
 public record PasswordConnectTokenUserDecryptionOptions(string Object, bool userDecryptionOptions);
 public record PasswordConnectTokenResult(
@@ -204,7 +203,44 @@ public record ImportOrgMember(string externalId, string? email, bool deleted);
 public record ImportOrgArgs(bool overwriteExisting, ImportOrgMember[] members, ImportOrgGroup[] groups);
 #endregion
 
+#region OrgConfirm
 public record ConfirmMemberArgs(string key);
+#endregion
+
+#region Ciphers
+public enum CipherType
+{
+    Login = 1,
+    SecureNote = 2,
+    Card = 3,
+    Identity = 4,
+    SshKey = 5,
+}
+public enum RepromptType
+{
+    None = 0,
+    Password = 1,
+}
+public record CipherItem(
+    string @object, string @id, CipherType type,
+    DateTime creationDate, DateTime revisionDate, DateTime? deletedDate,
+    string organizationId, bool organizationUseTotp,
+    string name, string key, RepromptType reprompt,
+    bool favorite, bool edit, bool viewPassword,
+    string? folderId, string? notes,
+    JsonElement? data,
+    string[] collectionIds,
+    JsonElement? attachments,
+    JsonElement? fields,
+    JsonElement? passwordHistory,
+    JsonElement? login,
+    JsonElement? secureNote,
+    JsonElement? card,
+    JsonElement? identity,
+    JsonElement? sshKey
+);
+public record CipherItemsResult(string @object, CipherItem[] data);
+#endregion
 
 public record EncryptedData(EncryptionType Type, byte[] Data, byte[]? IV = default, byte[]? MAC = default)
 {
@@ -329,6 +365,7 @@ public class VaultwardenHelper : IDisposable
         this.scopeAdmin = new VwAdmin(this);
         this.scopeUser = new VwUser(this);
         this.scopeOrg = new VwOrganization(this);
+        this.scopeCipher = new VwCipher(this);
         this.scopePublic = new VwPublic(this);
     }
 
@@ -345,6 +382,7 @@ public class VaultwardenHelper : IDisposable
     public IVwAdmin Admin => this.scopeAdmin;
     public IVwUser User => this.scopeUser;
     public IVwOrganization Organization => this.scopeOrg;
+    public IVwCipher Cipher => this.scopeCipher;
     public IVwPublic Public => this.scopePublic;
 
     public void Dispose()
@@ -379,6 +417,7 @@ public class VaultwardenHelper : IDisposable
     private class VwAdmin(VaultwardenHelper outer) : VwScopeBase(outer), IVwAdmin;
     private class VwUser(VaultwardenHelper outer) : VwScopeBase(outer), IVwUser;
     private class VwOrganization(VaultwardenHelper outer) : VwScopeBase(outer), IVwOrganization;
+    private class VwCipher(VaultwardenHelper outer) : VwScopeBase(outer), IVwCipher;
     private class VwPublic(VaultwardenHelper outer) : VwScopeBase(outer), IVwPublic;
 
     private HttpClient http;
@@ -390,6 +429,7 @@ public class VaultwardenHelper : IDisposable
     private IVwAdmin scopeAdmin;
     private IVwUser scopeUser;
     private IVwOrganization scopeOrg;
+    private IVwCipher scopeCipher;
     private IVwPublic scopePublic;
 }
 
@@ -763,6 +803,25 @@ public interface IVwOrganization : IVwScope
     }
 }
 
+public interface IVwCipher : IVwScope
+{
+    public async Task<CipherItemsResult> GetItems(ConnectTokenResult token, CancellationToken cancelToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/ciphers", token, default);
+        using var response = await this.Http.SendAsync(request, cancelToken);
+        var result = await response.EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CipherItemsResult>(cancelToken) ?? throw new Exception("failed to get result");
+        return result;
+    }
+
+    public async Task<CipherItem> GetItem(ConnectTokenResult token, string id, CancellationToken cancelToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/ciphers/{id}", token, default);
+        using var response = await this.Http.SendAsync(request, cancelToken);
+        var result = await response.EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CipherItem>(cancelToken) ?? throw new Exception("failed to get result");
+        return result;
+    }
+}
+
 public interface IVwPublic : IVwScope
 {
     public async Task ImportOrgMembersAsync(ConnectTokenResult token, ImportOrgArgs data, CancellationToken cancelToken = default)
@@ -772,3 +831,4 @@ public interface IVwPublic : IVwScope
         await response.EnsureSuccessStatusCode().Content.ReadAsStringAsync(cancelToken);
     }
 }
+
