@@ -1,16 +1,16 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: Microsoft.Playwright, 1.52.0"
 #r "nuget: VwConnector, 1.34.1-rev.5"
 #r "nuget: Lestaly.General, 0.100.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
 #nullable enable
-using Microsoft.Playwright;
+using System.Web;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
 using VwConnector;
+using VwConnector.Agent;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -50,24 +50,19 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         .Where(o => o.joinUrl != null)
         .ToArray();
 
-    WriteLine("Prepare playwright");
-    var packageVer = typeof(Microsoft.Playwright.Program).Assembly.GetName()?.Version?.ToString(3) ?? "*";
-    var packageDir = SpecialFolder.UserProfile().FindPathDirectory([".nuget", "packages", "Microsoft.Playwright", packageVer], MatchCasing.CaseInsensitive);
-    Environment.SetEnvironmentVariable("PLAYWRIGHT_DRIVER_SEARCH_PATH", packageDir?.FullName);
-    Microsoft.Playwright.Program.Main(["install", "chromium", "--with-deps"]);
-
     WriteLine("Register invite users");
-    using var playwright = await Playwright.CreateAsync();
-    await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true, });
     foreach (var invite in userInvites)
     {
         WriteLine($"  User: {invite.member.email}");
         var password = $"{invite.member.email.TakeToken('@')}-password";
-        var page = await browser.NewPageAsync();
-        var response = await page.GotoAsync(invite.joinUrl!);
-        await page.Locator("input[id='input-password-form_new-password']").FillAsync(password);
-        await page.Locator("input[id='input-password-form_confirm-new-password']").FillAsync(password);
-        await page.Locator("button[type='submit']").ClickAsync();
-        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var joinQuery = HttpUtility.ParseQueryString(invite.joinUrl?.SkipToken('?').ToString() ?? "");
+        var orgId = joinQuery["organizationId"] ?? "";
+        var orgUserId = joinQuery["organizationUserId"] ?? "";
+        var inviteToken = joinQuery["token"] ?? "";
+        await helper.Account.RegisterUserInviteAsync(new(invite.member.email, password), orgUserId, inviteToken, signal.Token);
+
+        WriteLine($"  .. accept org");
+        using var userAgent = await VaultwardenAgent.CreateAsync(new Uri(vwSettings.Service.Url), new(invite.member.email, password), signal.Token);
+        await userAgent.Connector.Organization.AcceptInviteAsync(userAgent.Token, orgId, orgUserId, new(inviteToken), signal.Token);
     }
 });
