@@ -1,15 +1,16 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Microsoft.Playwright, 1.52.0"
+#r "nuget: VwConnector, 1.34.1-rev.5"
 #r "nuget: Lestaly.General, 0.100.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
-#load ".vw-helper.csx"
 #nullable enable
 using Microsoft.Playwright;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
+using VwConnector;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -20,7 +21,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     if (testEntities == null) throw new PavedMessageException("Cannot load entities info");
 
     WriteLine("Get invite members");
-    using var helper = new VaultwardenHelper(new(vwSettings.Service.Url));
+    using var helper = new VaultwardenConnector(new(vwSettings.Service.Url));
     var userCredential = new ClientCredentialsConnectTokenModel(
         scope: "api",
         client_id: testEntities.Confirmer.ClientId,
@@ -30,7 +31,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         device_identifier: Environment.MachineName
     );
     var userToken = await helper.Identity.ConnectTokenAsync(userCredential, signal.Token);
-    var orgMembers = await helper.Organization.GetMembers(userToken, testEntities.Organization.Id, new(true, true), signal.Token);
+    var orgMembers = await helper.Organization.GetMembersAsync(userToken, testEntities.Organization.Id, new(true, true), signal.Token);
 
     WriteLine("Detection invite mail");
     var mailDir = ThisSource.RelativeDirectory("maildump");

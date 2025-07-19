@@ -1,14 +1,15 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Lestaly.General, 0.100.0"
+#r "nuget: VwConnector, 1.34.1-rev.5"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
-#load ".vw-helper.csx"
 #nullable enable
 using System.DirectoryServices.Protocols;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
+using VwConnector;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -32,7 +33,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         .ToArray();
 
     WriteLine("Import to vaultwarden users");
-    using var helper = new VaultwardenHelper(new(vwSettings.Service.Url));
+    using var helper = new VaultwardenConnector(new(vwSettings.Service.Url));
     helper.Timeout = TimeSpan.FromMinutes(5);
 
     var orgInfo = testEntities.Organization;

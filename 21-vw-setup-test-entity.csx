@@ -1,17 +1,18 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Microsoft.Playwright, 1.52.0"
+#r "nuget: VwConnector, 1.34.1-rev.5"
 #r "nuget: Lestaly.General, 0.100.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
-#load ".vw-helper.csx"
 #nullable enable
 using System.Text.Json;
+using System.Threading;
 using Microsoft.Playwright;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
-using System.Threading;
+using VwConnector;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -20,7 +21,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     WriteLine("Invite test user");
     var userInfo = vwSettings.Setup.TestUser;
     var orgInfo = vwSettings.Setup.TestOrg;
-    using var helper = new VaultwardenHelper(new(vwSettings.Service.Url));
+    using var helper = new VaultwardenConnector(new(vwSettings.Service.Url));
     var adminToken = await helper.Admin.GetTokenAsync(vwSettings.Setup.Admin.Password, signal.Token);
     var testUser = await helper.Admin.InviteAsync(adminToken, userInfo.Mail, signal.Token);
 
@@ -79,11 +80,11 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         password: userPassHashB64
     );
     var userToken = await helper.Identity.ConnectTokenAsync(userPassReq, signal.Token);
-    var userApiKey = await helper.User.GetApiKey(userToken, new(masterPasswordHash: userPassHashB64), signal.Token);
-    var userProfile = default(VwUser);
+    var userApiKey = await helper.User.GetApiKeyAsync(userToken, new(masterPasswordHash: userPassHashB64), signal.Token);
+    var userProfile = default(VwUserProfile);
     for (var i = 0; i < 3; i++)
     {
-        var user = await helper.User.GetProfile(userToken, signal.Token);
+        var user = await helper.User.GetProfileAsync(userToken, signal.Token);
         if (0 < user.organizations?.Length)
         {
             userProfile = user;
@@ -94,7 +95,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     if (userProfile == null) throw new PavedMessageException("Cannot access register page");
 
     var orgProfile = userProfile.organizations.First(o => o.name == orgInfo.Name);
-    var orgApiKey = await helper.Organization.GetApiKey(userToken, orgProfile.id, new(masterPasswordHash: userPassHashB64), signal.Token);
+    var orgApiKey = await helper.Organization.GetApiKeyAsync(userToken, orgProfile.id, new(masterPasswordHash: userPassHashB64), signal.Token);
 
     WriteLine("Create test collections");
     var stretchKey = helper.Utility.CreateStretchKey(vwSettings.Setup.TestUser.Mail, vwSettings.Setup.TestUser.Password, userPrelogin);
@@ -106,7 +107,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     foreach (var colName in vwSettings.Setup.TestOrg.Collections)
     {
         var colEncName = helper.Utility.EncryptAes(orgKey, colName.EncodeUtf8(), hmac: true);
-        var collection = await helper.Organization.CreateCollection(userToken, orgProfile.id, new(name: colEncName.BuildString(), users: [ownerMember], groups: []));
+        var collection = await helper.Organization.CreateCollectionAsync(userToken, orgProfile.id, new(name: colEncName.BuildString(), users: [ownerMember], groups: []));
         collections.Add(new(collection.id, collection.name));
     }
 

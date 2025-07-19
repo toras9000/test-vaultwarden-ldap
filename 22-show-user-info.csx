@@ -1,17 +1,18 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Microsoft.Playwright, 1.52.0"
+#r "nuget: VwConnector, 1.34.1-rev.5"
 #r "nuget: Lestaly.General, 0.100.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
-#load ".vw-helper.csx"
 #nullable enable
 using System.Text.Json;
+using System.Threading;
 using Microsoft.Playwright;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
-using System.Threading;
+using VwConnector;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -22,7 +23,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     if (testEntities == null) throw new PavedMessageException("Cannot load entities info");
 
     WriteLine("Get user info.");
-    using var helper = new VaultwardenHelper(new(vwSettings.Service.Url));
+    using var helper = new VaultwardenConnector(new(vwSettings.Service.Url));
     var userInfo = testEntities.Confirmer;
     var userCredential = new ClientCredentialsConnectTokenModel(
         scope: "api",
@@ -33,7 +34,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         device_identifier: Environment.MachineName
     );
     var userToken = await helper.Identity.ConnectTokenAsync(userCredential, signal.Token);
-    var userProfile = await helper.User.GetProfile(userToken, signal.Token);
+    var userProfile = await helper.User.GetProfileAsync(userToken, signal.Token);
     var stretchKey = helper.Utility.CreateStretchKey(vwSettings.Setup.TestUser.Mail, vwSettings.Setup.TestUser.Password, userToken.ToKdfConfig());
     var userKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(stretchKey.EncKey, EncryptedData.Parse(userProfile.key)));
     var userPrivateKey = helper.Utility.Decrypt(userKey.EncKey, EncryptedData.Parse(userProfile.privateKey));
@@ -51,7 +52,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         WriteLine($"    - UserId   : {org.userId}");
 
         var orgKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(org.key)));
-        var collections = await helper.Organization.GetCollections(userToken, org.id, signal.Token);
+        var collections = await helper.Organization.GetCollectionsAsync(userToken, org.id, signal.Token);
         foreach (var coll in collections.data.Index())
         {
             var name = helper.Utility.Decrypt(orgKey.EncKey, EncryptedData.Parse(coll.Item.name)).DecodeUtf8();

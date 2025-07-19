@@ -1,9 +1,9 @@
 #!/usr/bin/env dotnet-script
+#r "nuget: VwConnector, 1.34.1-rev.5"
 #r "nuget: Lestaly.General, 0.100.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
-#load ".vw-helper.csx"
 #nullable enable
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -12,6 +12,7 @@ using System.Threading;
 using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
+using VwConnector;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -22,7 +23,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     if (testEntities == null) throw new PavedMessageException("Cannot load entities info");
 
     WriteLine("Import to vaultwarden users");
-    using var helper = new VaultwardenHelper(new(vwSettings.Service.Url));
+    using var helper = new VaultwardenConnector(new(vwSettings.Service.Url));
     var userInfo = testEntities.Confirmer;
     var userCredential = new ClientCredentialsConnectTokenModel(
         scope: "api",
@@ -33,7 +34,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         device_identifier: Environment.MachineName
     );
     var userToken = await helper.Identity.ConnectTokenAsync(userCredential, signal.Token);
-    var userProfile = await helper.User.GetProfile(userToken, signal.Token);
+    var userProfile = await helper.User.GetProfileAsync(userToken, signal.Token);
     var orgProfile = userProfile.organizations.First(o => o.id == testEntities.Organization.Id);
 
     var stretchKey = helper.Utility.CreateStretchKey(vwSettings.Setup.TestUser.Mail, vwSettings.Setup.TestUser.Password, userToken.ToKdfConfig());
@@ -41,7 +42,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var userPrivateKey = helper.Utility.Decrypt(userKey.EncKey, EncryptedData.Parse(userProfile.privateKey));
     var orgKey = helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(orgProfile.key));
 
-    var orgMembers = await helper.Organization.GetMembers(userToken, orgProfile.id, new(true, true), signal.Token);
+    var orgMembers = await helper.Organization.GetMembersAsync(userToken, orgProfile.id, new(true, true), signal.Token);
     foreach (var member in orgMembers.data)
     {
         WriteLine($"{member.email}: {member.id}");
@@ -51,10 +52,10 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
             continue;
         }
 
-        var memberPubKey = await helper.User.GetPublicKey(userToken, member.userId, signal.Token);
+        var memberPubKey = await helper.User.GetPublicKeyAsync(userToken, member.userId, signal.Token);
         var pubkeyBytes = memberPubKey.publicKey.DecodeBase64();
         var confirmKey = helper.Utility.EncryptRsa(pubkeyBytes!, orgKey);
-        await helper.Organization.ConfirmMember(userToken, orgProfile.id, member.id, new(confirmKey.BuildString()), signal.Token);
+        await helper.Organization.ConfirmMemberAsync(userToken, orgProfile.id, member.id, new(confirmKey.BuildString()), signal.Token);
         WriteLine($"..  Confirmed");
     }
 
