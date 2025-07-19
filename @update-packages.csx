@@ -23,7 +23,7 @@ var settings = new
         new("Kokuban",                               "0.2.0"),
         new("SmtpServer",                            "10.0.1"),
         new("MimeKit",                               "4.12.0"),
-        new("VwConnector",                           "1.34.1-rev.5"),
+        new("VwConnector",                           "1.34.1-rev.6"),
     },
 };
 

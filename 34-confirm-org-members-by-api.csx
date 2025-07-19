@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: VwConnector, 1.34.1-rev.5"
+#r "nuget: VwConnector, 1.34.1-rev.6"
 #r "nuget: Lestaly.General, 0.100.0"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
@@ -13,6 +13,7 @@ using Kokuban;
 using Lestaly;
 using Lestaly.Cx;
 using VwConnector;
+using VwConnector.Agent;
 
 return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
 {
@@ -22,27 +23,11 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var testEntities = await vwSettings.TestEntitiesFile.ReadJsonAsync<TestEntities>();
     if (testEntities == null) throw new PavedMessageException("Cannot load entities info");
 
-    WriteLine("Import to vaultwarden users");
-    using var helper = new VaultwardenConnector(new(vwSettings.Service.Url));
-    var userInfo = testEntities.Confirmer;
-    var userCredential = new ClientCredentialsConnectTokenModel(
-        scope: "api",
-        client_id: userInfo.ClientId,
-        client_secret: userInfo.ClientSecret,
-        device_type: ClientDeviceType.OperaBrowser,
-        device_name: Environment.MachineName,
-        device_identifier: Environment.MachineName
-    );
-    var userToken = await helper.Identity.ConnectTokenAsync(userCredential, signal.Token);
-    var userProfile = await helper.User.GetProfileAsync(userToken, signal.Token);
-    var orgProfile = userProfile.organizations.First(o => o.id == testEntities.Organization.Id);
-
-    var stretchKey = helper.Utility.CreateStretchKey(vwSettings.Setup.TestUser.Mail, vwSettings.Setup.TestUser.Password, userToken.ToKdfConfig());
-    var userKey = SymmetricCryptoKey.From(helper.Utility.Decrypt(stretchKey.EncKey, EncryptedData.Parse(userProfile.key)));
-    var userPrivateKey = helper.Utility.Decrypt(userKey.EncKey, EncryptedData.Parse(userProfile.privateKey));
-    var orgKey = helper.Utility.Decrypt(userPrivateKey, EncryptedData.Parse(orgProfile.key));
-
-    var orgMembers = await helper.Organization.GetMembersAsync(userToken, orgProfile.id, new(true, true), signal.Token);
+    WriteLine("Confirm org members");
+    var userInfo = vwSettings.Setup.TestUser;
+    using var agent = await VaultwardenAgent.CreateAsync(new Uri(vwSettings.Service.Url), new(userInfo.Mail, userInfo.Password), signal.Token);
+    var orgId = testEntities.Organization.Id;
+    var orgMembers = await agent.Connector.Organization.GetMembersAsync(agent.Token, orgId, new(true, true), signal.Token);
     foreach (var member in orgMembers.data)
     {
         WriteLine($"{member.email}: {member.id}");
@@ -52,10 +37,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
             continue;
         }
 
-        var memberPubKey = await helper.User.GetPublicKeyAsync(userToken, member.userId, signal.Token);
-        var pubkeyBytes = memberPubKey.publicKey.DecodeBase64();
-        var confirmKey = helper.Utility.EncryptRsa(pubkeyBytes!, orgKey);
-        await helper.Organization.ConfirmMemberAsync(userToken, orgProfile.id, member.id, new(confirmKey.BuildString()), signal.Token);
+        await agent.Affect.ConfirmMemberAsync(orgId, new(member.id, member.userId), signal.Token);
         WriteLine($"..  Confirmed");
     }
 

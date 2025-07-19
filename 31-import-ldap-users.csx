@@ -1,6 +1,6 @@
 #!/usr/bin/env dotnet-script
 #r "nuget: Lestaly.General, 0.100.0"
-#r "nuget: VwConnector, 1.34.1-rev.5"
+#r "nuget: VwConnector, 1.34.1-rev.6"
 #r "nuget: Kokuban, 0.2.0"
 #load ".ldap-settings.csx"
 #load ".vw-settings.csx"
