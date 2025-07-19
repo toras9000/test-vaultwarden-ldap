@@ -1,3 +1,4 @@
+#r "nuget: Lestaly.Ldap, 0.100.0"
 using System.DirectoryServices.Protocols;
 using System.Net;
 #nullable enable

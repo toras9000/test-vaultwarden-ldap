@@ -1,4 +1,4 @@
-#r "nuget: Lestaly, 0.84.0"
+#r "nuget: Lestaly.General, 0.100.0"
 #nullable enable
 using System.Buffers;
 using System.Buffers.Text;
@@ -252,13 +252,13 @@ public record EncryptedData(EncryptionType Type, byte[] Data, byte[]? IV = defau
         value = default;
         if (encryptedString.IsWhiteSpace()) return false;
         var scan = encryptedString;
-        var typeNum = scan.TakeSkipFirstToken(out scan, '.').TryParseNumber<int>();
+        var typeNum = scan.TakeSkipToken(out scan, '.').TryParseNumber<int>();
         if (!typeNum.HasValue) return false;
         var type = (EncryptionType)typeNum.Value;
         if (!Enum.IsDefined(type)) return false;
-        var part1 = scan.TakeSkipFirstToken(out scan, '|');
-        var part2 = scan.TakeSkipFirstToken(out scan, '|');
-        var part3 = scan.TakeSkipFirstToken(out scan, '|');
+        var part1 = scan.TakeSkipToken(out scan, '|');
+        var part2 = scan.TakeSkipToken(out scan, '|');
+        var part3 = scan.TakeSkipToken(out scan, '|');
 
         static bool tryConstruct(EncryptionType type, ReadOnlySpan<char> data, ReadOnlySpan<char> iv, ReadOnlySpan<char> mac, [NotNullWhen(true)] out EncryptedData? value)
         {
@@ -659,7 +659,7 @@ public interface IVwAdmin : IVwScope
             var scan = cookie.AsSpan();
             while (!scan.IsEmpty)
             {
-                var entry = scan.TakeSkipFirstToken(out scan, delimiter: ';');
+                var entry = scan.TakeSkipToken(out scan, delimiter: ';');
                 var key = entry.SplitAt('=', out var value);
                 if (key.Trim().Equals("VW_ADMIN", StringComparison.OrdinalIgnoreCase))
                 {
