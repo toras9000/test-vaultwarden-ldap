@@ -1,0 +1,36 @@
+{
+  "Operation": {
+    "StartupWaitSeconds": 10,
+    "IntervalMinutes": 1
+  },
+  "Vaultwarden": {
+    "Server": {
+      "Url": "http://vaultwarden-container:80"
+    },
+    "Organization": {
+      "OrgId": "69a82372-5982-447f-987a-801f43280e66"
+    },
+    "ConfirmUser": {
+      "Mail": "tester@myserver.home",
+      "MasterPassword": "tester-password"
+    },
+    "Permissions": {
+      "Enabled": true,
+      "Role": "User",
+      "Collections": [
+        {
+          "Name": "Collec1",
+          "Privilege": "Show"
+        },
+        {
+          "Name": "Collec2",
+          "Privilege": "Edit"
+        }
+      ]
+    },
+    "Client": {
+      "DeviceName": "vaultwarden-auto-confirm",
+      "DeviceIdentifier": "vaultwarden-auto-confirm"
+    }
+  }
+}

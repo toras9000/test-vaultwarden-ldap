@@ -1,0 +1,49 @@
+{
+  "Operation": {
+    "StartupWaitSeconds": 10,
+    "IntervalMinutes": 1
+  },
+  "Ldap": {
+    "Server": {
+      "Host": "openldap-container",
+      "Port": 389,
+      "Secure": false,
+      "ProtocolVersion": 3
+    },
+    "Credential": {
+      "Username": "uid=authenticator,ou=operators,dc=myserver,o=home",
+      "Password": "authenticator-pass"
+    },
+    "Directory": {
+      "BaseDn": "ou=persons,ou=accounts,dc=myserver,o=home",
+      "Subtree": true,
+      "Filter": "(&(objectClass=inetOrgPerson)(memberOf=cn=vaultwarden,ou=groups,dc=myserver,o=home)(!(olcDisabled=TRUE)))",
+      "Attributes": {
+        "ID": "uid",
+        "Mail": "mail"
+      }
+    },
+    "Mailaddr": {
+      "AcceptPatterns": [
+        "@myserver\\.home$"
+      ]
+    }
+  },
+  "Vaultwarden": {
+    "Server": {
+      "Url": "http://vaultwarden-container:80"
+    },
+    "Options": {
+      "OverwriteExisting": false
+    },
+    "Organization": {
+      "OrgId": "organization-id",
+      "ClientId": "org-api-client-id",
+      "ClientSecret": "org-api-client-secret"
+    },
+    "Client": {
+      "DeviceName": "vaultwarden-ldap-import",
+      "DeviceIdentifier": "vaultwarden-ldap-import"
+    }
+  }
+}
