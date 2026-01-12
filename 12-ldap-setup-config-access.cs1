@@ -1,17 +1,13 @@
-#!/usr/bin/env dotnet-script
-#r "nuget: Lestaly.General, 0.102.0"
-#r "nuget: Lestaly.Ldap, 0.100.0"
-#r "nuget: Kokuban, 0.2.0"
-#load ".settings.csx"
-#nullable enable
+#!/usr/bin/env -S dotnet run --file
+#:package Lestaly.General@0.114.0
+#:package Lestaly.Ldap@0.103.0
+#:package RefFile@0.2.0
 using System.DirectoryServices.Protocols;
-using System.Net;
 using System.Text.RegularExpressions;
-using Kokuban;
 using Lestaly;
-using Lestaly.Cx;
+[assembly: RefFile(".settings.cs1")]
 
-return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
+return await Paved.ProceedAsync(noPause: args.RoughContains("--no-pause"), async () =>
 {
     // Read the access definition to be added
     var defineFile = ThisSource.RelativeFile("./assets/ldap/data/ldap-access-config.txt");
@@ -19,7 +15,8 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     var defineAccesses = defineContents.MatchSplit(@"^[\r\n]+", RegexOptions.Multiline);
 
     // Bind to LDAP server
-    WriteLine("Bind to LDAP server");
+    Console.WriteLine("Bind to LDAP server");
+    var ldapSettings = new LdapSettings();
     var server = new LdapDirectoryIdentifier(ldapSettings.Server.Host, ldapSettings.Server.Port);
     using var ldap = new LdapConnection(server);
     ldap.SessionOptions.SecureSocketLayer = ldapSettings.Server.Ssl;
@@ -29,7 +26,7 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     ldap.Bind();
 
     // Read the existing access definition.
-    WriteLine("Search existing access");
+    Console.WriteLine("Search existing access");
     var configDn = "olcDatabase={2}mdb,cn=config";
     var searchResult = await ldap.SearchAsync(configDn, SearchScope.Base);
     var configEntry = searchResult.Entries[0];
@@ -38,17 +35,17 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     // Remove all existing access.
     if (0 < accessExists.Length)
     {
-        WriteLine("Delete all access");
+        Console.WriteLine("Delete all access");
         var deleteRsp = await ldap.DeleteAttributeAsync(configDn, "olcAccess", defineAccesses);
         if (deleteRsp.ResultCode != 0) throw new PavedMessageException($"failed to modify: {deleteRsp.ErrorMessage}");
     }
 
     // Add defined access.
-    WriteLine("Request to add access.");
+    Console.WriteLine("Request to add access.");
     {
         var modifyRsp = await ldap.AddAttributeAsync(configDn, "olcAccess", defineAccesses);
         if (modifyRsp.ResultCode != 0) throw new PavedMessageException($"failed to modify: {modifyRsp.ErrorMessage}");
     }
 
-    WriteLine("Completed.");
+    Console.WriteLine("Completed.");
 });

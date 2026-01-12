@@ -1,0 +1,82 @@
+#!/usr/bin/env -S dotnet run --file
+using System.Net;
+using Lestaly;
+
+public record VwSettingsService(Uri Url);
+public record VwSettingsSetup(VwSettingsSetupAdmin Admin, VwSettingsSetupUser TestUser, VwSettingsSetupOrg TestOrg);
+public record VwSettingsSetupAdmin(string Password);
+public record VwSettingsSetupUser(string Mail, string Password);
+public record VwSettingsSetupOrg(string Name, string[] Collections);
+
+public class VwSettings
+{
+    // Vaultwarden service
+    public VwSettingsService Service { get; } = new
+    (
+        // Vaultwarden URL
+        Url: new Uri("http://localhost:8180")
+    ),
+
+    public VwSettingsSetup Setup { get; } = new
+    (
+        Admin: new
+        (
+            Password: "admin-pass"
+        ),
+        TestUser: new
+        (
+            Mail: "tester@myserver.home",
+            Password: "tester-password"
+        ),
+        TestOrg: new
+        (
+            Name: "TestOrg",
+            Collections: new[]
+            {
+                "Collec1",
+                "Collec2",
+            }
+        )
+    );
+}
+
+public record LdapSettingsServer(string Host, ushort Port, bool Ssl, int ProtocolVersion);
+public record LdapSettingsCredentials(NetworkCredential ConfigAdmin, NetworkCredential DirectoryConfigurator);
+public record LdapSettingsDirectory(string PersonUnitDn, string GroupUnitDn);
+
+public class LdapSettings
+{
+    // LDAP server settings
+    public LdapSettingsServer Server { get; } = new
+    (
+        // Host name or ip
+        Host: "localhost",
+
+        // Port number
+        Port: 389,
+
+        // Use SSL
+        Ssl: false,
+
+        // LDAP protocol version
+        ProtocolVersion: 3
+    );
+
+    public LdapSettingsCredentials Credentials { get; } = new
+    (
+        // Config Admin credential
+        ConfigAdmin: new NetworkCredential("cn=config-admin,cn=config", "config-admin-pass"),
+
+        // Configurator credential
+        DirectoryConfigurator: new NetworkCredential("uid=configurator,ou=operators,dc=myserver,o=home", "configurator-pass")
+    );
+
+    public LdapSettingsDirectory Directory { get; } = new
+    (
+        // Person manage unit DN
+        PersonUnitDn: "ou=persons,ou=accounts,dc=myserver,o=home",
+
+        // Group manage unit DN
+        GroupUnitDn: "ou=groups,dc=myserver,o=home"
+    );
+}

@@ -6,7 +6,7 @@ volumes:
 
 services:
   ldap:
-    image: bitnami/openldap:2.6
+    image: bitnamilegacy/openldap:2.6
     restart: unless-stopped
     networks:
       default:
@@ -62,31 +62,3 @@ services:
       timeout: 5s
       interval: 300s
       retries: 3
-
-  importer:
-    image: ghcr.io/toras9000/vaultwarden-ldap-import:0.1.0
-    restart: unless-stopped
-    volumes:
-      - type: bind
-        source: ./assets/vwli
-        target: /vwli
-        read_only: true
-        bind:
-          create_host_path: false
-    environment:
-      - TZ=Asia/Tokyo
-      - VWLI_SETTINGS_FILE=/vwli/settings.json
-
-  confirmer:
-    image: ghcr.io/toras9000/vaultwarden-auto-confirm:0.1.0
-    restart: unless-stopped
-    volumes:
-      - type: bind
-        source: ./assets/vwac
-        target: /vwac
-        read_only: true
-        bind:
-          create_host_path: false
-    environment:
-      - TZ=Asia/Tokyo
-      - VWAC_SETTINGS_FILE=/vwac/settings.json

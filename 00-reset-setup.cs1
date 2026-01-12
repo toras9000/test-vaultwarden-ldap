@@ -1,0 +1,15 @@
+#!/usr/bin/env -S dotnet run --file
+#:package Kokuban@0.2.0
+#:package Lestaly.General@0.114.0
+using Lestaly;
+using Lestaly.Cx;
+
+return await Paved.ProceedAsync(async () =>
+{
+    await "dotnet".args("run", "--file", ThisSource.RelativeFile("01-containers-volume-delete.cs1"), "--no-pause").echo().result().success();
+    await "dotnet".args("run", "--file", ThisSource.RelativeFile("02-containers-restart.cs1"), "--no-pause").echo().result().success();
+    await "dotnet".args("run", "--file", ThisSource.RelativeFile("11-ldap-setup-memberof.cs1"), "--no-pause").echo().result().success();
+    await "dotnet".args("run", "--file", ThisSource.RelativeFile("12-ldap-setup-config-access.cs1"), "--no-pause").echo().result().success();
+    await "dotnet".args("run", "--file", ThisSource.RelativeFile("21-vw-create-test-entities.cs1"), "--no-pause").echo().result().success();
+    await "dotnet".args("run", "--file", ThisSource.RelativeFile("@@show-service.cs1"), "--no-pause").echo().result().success();
+});

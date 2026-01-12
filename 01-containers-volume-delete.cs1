@@ -1,0 +1,13 @@
+#!/usr/bin/env -S dotnet run --file
+#:package Kokuban@0.2.0
+#:package Lestaly.General@0.114.0
+using Kokuban;
+using Lestaly;
+using Lestaly.Cx;
+
+return await Paved.ProceedAsync(noPause: args.RoughContains("--no-pause"), async () =>
+{
+    Console.WriteLine(Chalk.Green["Delete containers & volumes."]);
+    var composeFile = ThisSource.RelativeFile("./compose.yml");
+    await "docker".args("compose", "--file", composeFile, "down", "--remove-orphans", "--volumes");
+});

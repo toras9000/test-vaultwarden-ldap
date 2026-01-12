@@ -1,22 +1,23 @@
-#!/usr/bin/env dotnet-script
-#r "nuget: Lestaly.General, 0.102.0"
-#r "nuget: Lestaly.Ldap, 0.100.0"
-#r "nuget: Kokuban, 0.2.0"
-#load ".settings.csx"
-#nullable enable
+#!/usr/bin/env -S dotnet run --file
+#:package Lestaly.General@0.114.0
+#:package Lestaly.Ldap@0.103.0
+#:package Kokuban@0.2.0
+#:package RefFile@0.2.0
+#:property PublishAot=false
 using System.DirectoryServices.Protocols;
-using System.Net;
 using Kokuban;
 using Lestaly;
+[assembly: RefFile(".settings.cs1")]
 
 var settings = new
 {
     Group = "cn=vaultwarden,ou=groups,dc=myserver,o=home",
 };
 
-return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async () =>
+return await Paved.ProceedAsync(noPause: args.RoughContains("--no-pause"), async () =>
 {
-    WriteLine("Bind to LDAP server");
+    Console.WriteLine("Bind to LDAP server");
+    var ldapSettings = new LdapSettings();
     var server = new LdapDirectoryIdentifier(ldapSettings.Server.Host, ldapSettings.Server.Port);
     using var ldap = new LdapConnection(server);
     ldap.SessionOptions.SecureSocketLayer = ldapSettings.Server.Ssl;
@@ -24,22 +25,22 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
     ldap.AuthType = AuthType.Basic;
     ldap.Credential = ldapSettings.Credentials.DirectoryConfigurator;
     ldap.Bind();
-    WriteLine(Chalk.Green[$".. OK"]);
+    Console.WriteLine(Chalk.Green[$".. OK"]);
 
-    WriteLine("Enter user UID");
+    Console.WriteLine("Enter user UID");
     while (true)
     {
-        Write(">");
-        var uid = ReadLine()?.Trim();
+        Console.Write(">");
+        var uid = Console.ReadLine()?.Trim();
         if (uid == null) break;
         if (uid.IsEmpty()) continue;
 
-        WriteLine($"User: {uid}");
+        Console.WriteLine($"User: {uid}");
         var userDn = $"uid={uid},{ldapSettings.Directory.PersonUnitDn}";
         var userEntry = await ldap.GetEntryOrDefaultAsync(userDn);
         if (userEntry != null)
         {
-            WriteLine($".. Already exists");
+            Console.WriteLine($".. Already exists");
             continue;
         }
 
@@ -47,12 +48,12 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
         var sn = uid;
         var mail = $"{uid}@myserver.home";
         var passwd = $"{uid}-pass";
-        WriteLine(Chalk.Blue[$".. Entity:"]);
-        WriteLine(Chalk.Blue[$"     DN={userDn}"]);
-        WriteLine(Chalk.Blue[$"     cn={cn}"]);
-        WriteLine(Chalk.Blue[$"     sn={sn}"]);
-        WriteLine(Chalk.Blue[$"     mail={mail}"]);
-        WriteLine(Chalk.Blue[$"     password={passwd}"]);
+        Console.WriteLine(Chalk.Blue[$".. Entity:"]);
+        Console.WriteLine(Chalk.Blue[$"     DN={userDn}"]);
+        Console.WriteLine(Chalk.Blue[$"     cn={cn}"]);
+        Console.WriteLine(Chalk.Blue[$"     sn={sn}"]);
+        Console.WriteLine(Chalk.Blue[$"     mail={mail}"]);
+        Console.WriteLine(Chalk.Blue[$"     password={passwd}"]);
 
         var hash = LdapExtensions.MakePasswordHash.SSHA256(passwd);
         await ldap.CreateEntryAsync(userDn,
@@ -63,11 +64,11 @@ return await Paved.ProceedAsync(noPause: Args.RoughContains("--no-pause"), async
                 new("mail", mail),
                 new("userPassword", hash),
             ]);
-        WriteLine(Chalk.Green[$".. Created"]);
+        Console.WriteLine(Chalk.Green[$".. Created"]);
 
-        WriteLine(Chalk.Green[$".. Add to group '{settings.Group}'"]);
+        Console.WriteLine(Chalk.Green[$".. Add to group '{settings.Group}'"]);
         await ldap.AddAttributeAsync(settings.Group, "member", [userDn]);
-        WriteLine(Chalk.Green[$".. Added"]);
-        WriteLine();
+        Console.WriteLine(Chalk.Green[$".. Added"]);
+        Console.WriteLine();
     }
 });
